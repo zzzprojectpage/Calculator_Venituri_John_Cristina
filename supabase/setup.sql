@@ -1,9 +1,7 @@
--- Visteria (Banii Noștri) · John & Cristina — configurare Supabase
--- Rulați în SQL Editor, ÎN ACELAȘI proiect Supabase ca și aplicația Marius & Diana.
--- Creează un set propriu de obiecte „jc_”, deci nu ating datele vechii aplicații.
---
--- PASUL cu codul de acces: înlocuiți PUNE_CODUL_DE_64_CARACTERE_DIN_CREDENTIALS
--- cu codul din fișierul Credentials.txt (în baza de date se salvează doar hașa lui).
+-- Împreună · John & Cristina — configurare Supabase
+-- Rulați în SQL Editor, în același proiect Supabase ca aplicația Marius & Diana.
+-- Creează obiecte proprii „jc_”, deci nu ating datele aplicației Marius & Diana.
+-- Sumele se salvează în lei. Nu introduceți codul privat în GitHub sau în config.js.
 
 begin;
 
@@ -155,28 +153,14 @@ grant execute on function public.jc_save(text, text, jsonb, integer, boolean) to
 
 commit;
 
--- ===== Bootstrap: cod de acces + prima lună =====
--- 1) Hașa codului de acces (codul real rămâne doar în Credentials.txt):
-insert into public.jc_access(id, code_hash)
-values (true, encode(sha256(convert_to('PUNE_CODUL_DE_64_CARACTERE_DIN_CREDENTIALS', 'UTF8')), 'hex'))
-on conflict(id) do nothing;
-
--- 2) Prima lună: ambele salarii planificate la 5000 lei. Lunile următoare
---    moștenesc automat aceste valori (și orice modificare ulterioară a Planificatului).
-insert into public.jc_months(month, data, version)
-values ('2026-10', jsonb_build_object(
-  'rows', jsonb_build_array(
-    jsonb_build_object('id','salary-john','owner','John','kind','income','label','Salariu','planned',5000,'actual',null,'date',''),
-    jsonb_build_object('id','salary-cristina','owner','Cristina','kind','income','label','Salariu','planned',5000,'actual',null,'date','')
-  ),
-  'transfers', '[]'::jsonb
-), 1)
-on conflict(month) do nothing;
-
--- (Dacă baza deja exista cu ids vechi „seed-income-*”, redenumiți-le:)
--- update public.jc_months set data = jsonb_set(data, '{rows}',
---   (select jsonb_agg(case when r->>'id' = 'seed-income-john' then jsonb_set(r, '{id}', '"salary-john"'::jsonb)
---                         when r->>'id' = 'seed-income-cristina' then jsonb_set(r, '{id}', '"salary-cristina"'::jsonb)
---                         else r end)
---    from jsonb_array_elements(data->'rows') r))
--- where month = '2026-10' and jsonb_path_exists(data->'rows', '$[?(@.id == "seed-income-john")]');
+-- Prima rulare returnează codul privat în Results. Copiați-l într-un loc sigur.
+-- Rulările următoare păstrează codul existent și nu șterg bugetele.
+with secret as materialized (
+ select replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '') as code
+), inserted as (
+ insert into public.jc_access(id,code_hash)
+ select true, encode(sha256(convert_to(code,'UTF8')),'hex') from secret
+ on conflict(id) do nothing returning id
+)
+select case when exists(select 1 from inserted) then (select code from secret)
+ else 'Codul există deja. Folosiți codul salvat la prima configurare.' end as cod_privat;
