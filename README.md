@@ -6,13 +6,19 @@ aplicația frațului „Împreună · Marius & Diana”, dar cu design propriu �
 
 🔗 https://zzzprojectpage.github.io/Calculator_Venituri_John_Cristina/
 
-## Cum funcționează „Planificat”
+## Cum funcționează banii (identic 1:1 cu „Împreună · Marius & Diana”)
 
-- În fiecare lună, câmpul **Planificat** pornește implicit de la **5000 lei** (sau preia valoarea din ultima lună salvată).
-- Când salvezi o valoare nouă (ex. **6000**), aplicația o copiază automat în **toate lunile următoare**:
-  - lunile viitoare deja salvate primesc noua valoare imediat (serverul face propagarea);
-  - lunile viitoare încă necreate o moștenesc automat când le deschizi pentru prima dată.
-- La moștenire se păstrează doar *Planificatul*; *Încasat efectiv* rămâne gol în luna nouă.
+- **De împărțit luna aceasta** = total venituri (estimate/confirmate) − total cheltuieli;
+  se împarte egal, iar banul impar rămâne la Cristina.
+- **Până intră salariul Cristinei**: după ce John și-a încasat salariul, aplicația arată
+  „Astăzi: John → Cristina X lei” — din banii lui John se rezervă cheltuielile lui neplătite,
+  iar restul se împarte egal, ținând cont de transferurile deja făcute.
+- **Rezultatul net / Egalizarea**: fiecărui i se calculează poziția de cash
+  (venituri încasate − plăți efective ± transferuri înregistrate); diferența față de
+  jumătate din total se transferă de la cel cu mai mult către cel cu mai puțin.
+  Transferurile nu sunt cheltuieli și nu scad totalul de împărțit.
+- **Planificat = 5000** implicit, iar valoarea salvată se propagă în lunile următoare:
+  lunile viitoare salvate o primesc imediat, cele necreate o moștenesc la prima deschidere.
 
 ## Structura
 

@@ -195,13 +195,11 @@ function renderSummary() {
 
   // Card 1 — „De împărțit luna aceasta” (baza: previzionat, ca în original)
   $('#splitMain').textContent = lei(est.total);
-  const tag = $('#forecastTag');
-  tag.textContent = fin.ready ? 'Bani confirmați' : 'Estimare';
-  tag.classList.toggle('confirmed', fin.ready);
   $('#shareJohn').textContent = lei(est.shares.John);
   $('#shareCristina').textContent = lei(est.shares.Cristina);
 
-  // Card 2 — recomandarea de egalizare (Ce din original: fin confirmat dacă e gata, altfel estimare)
+  // Card „Rezultatul net al lunii” / „Egalizare pe baza banilor confirmați” (Ce din original)
+  $('#recLabel').textContent = fin.ready ? 'Egalizare pe baza banilor confirmați' : 'Rezultatul net al lunii';
   const recMain = $('#recMain');
   if (rec.amount === 0) {
     recMain.textContent = 'Sunteți la egalitate';
@@ -209,9 +207,9 @@ function renderSummary() {
     recMain.innerHTML = arrow(rec);
   }
   $('#recNote').textContent = fin.ready
-    ? 'Salariile și cheltuielile sunt confirmate. Dacă un bonus încă nu a intrat, confirmă-l mai târziu: suma se va recalcula.'
+    ? 'Salariile și cheltuielile sunt confirmate. Dacă bonusul încă nu a intrat, bifează-l mai târziu: suma se va recalcula.'
     : interim.amount
-      ? 'Aceasta este diferența netă pentru toată lună dacă nu se face transferul temporar de mai jos. Nu se adună peste suma de astăzi.'
+      ? 'Aceasta este diferența netă pentru toată luna dacă nu se face transferul temporar de mai sus. Nu se adună peste suma de astăzi.'
       : 'Estimarea include toate veniturile și cheltuielile planificate. Confirmă salariile și plățile înainte de a înregistra egalizarea.';
   $('#deficitWarn').classList.toggle('hidden', est.total >= 0);
   const eqBtn = $('#registerEqualBtn');
@@ -219,11 +217,11 @@ function renderSummary() {
   eqBtn.dataset.from = rec.from;
   eqBtn.dataset.amount = rec.amount;
 
-  // Card 3 — transferul temporar de până la salariul Cristinei
+  // Card „Până intră salariul Cristinei” — transferul temporar (be din original)
   const ic = $('#interimCard');
   if (interim.active && interim.amount > 0) {
     ic.classList.remove('hidden');
-    $('#interimMain').innerHTML = arrow(interim);
+    $('#interimMain').innerHTML = `Astăzi: ${arrow(interim)}`;
     $('#interimNote').textContent =
       `Acesta este un transfer temporar, ca Cristina să aibă bani până la salariu. Sunt rezervați ${lei(interim.reserve)} pentru cheltuielile neplătite din tab-ul lui John.`;
     $('#availJ').textContent = lei(interim.availJ);
@@ -231,7 +229,7 @@ function renderSummary() {
     $('#afterNote').innerHTML =
       `<strong>După transferul de azi:</strong> la final este estimată compensarea <strong>${
         after.amount ? `${after.from} → ${after.to} ${lei(after.amount)}` : 'sunteți la egalitate'
-      }</strong>. Nu este o sumă suplimentară de trimis.`;
+      }</strong>. Nu este o sumă suplimentară de trimis acum; se confirmă după salariul Cristinei și toate plățile.`;
     const iBtn = $('#registerInterimBtn');
     iBtn.dataset.from = 'John';
     iBtn.dataset.amount = interim.amount;
@@ -239,20 +237,22 @@ function renderSummary() {
     ic.classList.add('hidden');
   }
 
-  // Statistici proprii (doar informativ)
-  const planned = { John: 0, Cristina: 0 };
-  let confirmedIncome = 0, expenseSum = 0;
+  // Statistici proprii: pe bani confirmați (ca „Încasat / Plătit” din original)
+  let confirmedIncome = 0, paidExpenses = 0, plannedIncome = 0, plannedExpenses = 0;
   for (const r of S.state.data.rows) {
     if (r.kind === 'income') {
-      planned[r.owner] += Number(r.planned || 0);
-      confirmedIncome += rowValue(r);
-    } else expenseSum += rowValue(r);
+      plannedIncome += Number(r.planned || 0);
+      if (r.actual !== null && r.actual !== undefined) confirmedIncome += Number(r.actual);
+    } else {
+      plannedExpenses += Number(r.planned || 0);
+      if (r.actual !== null && r.actual !== undefined) paidExpenses += Number(r.actual);
+    }
   }
-  $('#planJohn').textContent = lei(planned.John);
-  $('#planCristina').textContent = lei(planned.Cristina);
+  $('#planIncome').textContent = lei(plannedIncome);
   $('#incomeTotal').textContent = lei(confirmedIncome);
   $('#incomeTotal').classList.toggle('pos', confirmedIncome > 0);
-  $('#expenseTotal').textContent = lei(expenseSum);
+  $('#planExpenses').textContent = lei(plannedExpenses);
+  $('#expenseTotal').textContent = lei(paidExpenses);
 }
 
 function dateChip(dateStr) {
