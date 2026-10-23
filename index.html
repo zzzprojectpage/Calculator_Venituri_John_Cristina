@@ -58,9 +58,36 @@
 
     <section class="hero">
       <div class="hero-card">
-        <span class="hero-label">Împărțirea lunii</span>
-        <strong id="splitMain" class="hero-value">—</strong>
-        <span id="splitNote" class="hero-note">Nicio cheltuială înregistrată</span>
+        <div class="hero-top">
+          <span class="hero-label">De împărțit luna aceasta</span>
+          <span id="forecastTag" class="tag-est">Estimare</span>
+        </div>
+        <strong id="splitMain" class="hero-value">0 lei</strong>
+        <div class="share-row">
+          <div class="share j"><span class="ava">J</span><div><span>John</span><strong id="shareJohn">0 lei</strong></div></div>
+          <div class="share c"><span class="ava">C</span><div><span>Cristina</span><strong id="shareCristina">0 lei</strong></div></div>
+        </div>
+        <span id="splitNote" class="hero-note">Include veniturile planificate și toate cheltuielile.</span>
+      </div>
+
+      <div class="hero-card rec-card">
+        <span class="hero-label">Egalizarea lunii</span>
+        <strong id="recMain" class="hero-value">—</strong>
+        <span id="recNote" class="hero-note"></span>
+        <p id="deficitWarn" class="hero-warn hidden">Bugetul planificat are un deficit. Revizuiți cheltuielile.</p>
+        <button id="registerEqualBtn" class="btn ghost small" disabled>⇄ Înregistrează egalizarea</button>
+      </div>
+
+      <div class="hero-card interim-card hidden" id="interimCard">
+        <span class="hero-label">Până la salariul Cristinei</span>
+        <strong id="interimMain" class="hero-value">—</strong>
+        <p id="interimNote" class="interim-note"></p>
+        <div class="interim-details">
+          <span>John, disponibil: <strong id="availJ">0 lei</strong></span>
+          <span>Cristina, disponibil: <strong id="availC">0 lei</strong></span>
+        </div>
+        <p id="afterNote" class="interim-note"></p>
+        <button id="registerInterimBtn" class="btn ghost small">⇄ Înregistrează transferul</button>
       </div>
       <div class="stat-grid">
         <div class="stat">

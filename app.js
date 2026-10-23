@@ -117,31 +117,66 @@ function guardUnload(fn) {
   else fn();
 }
 
-/* ============================== calcule ============================== */
-function calc() {
-  const d = S.state.data;
-  const income = { John: 0, Cristina: 0 }, planned = { John: 0, Cristina: 0 };
-  const paid = { John: 0, Cristina: 0 };
-  let expenseTotal = 0, incomeTotal = 0;
+/* ============================== calcule (identic 1:1 cu aplicația „Împreună”) ============================== */
+// Port al funcțiilor tG() și nG() din aplicația Marius & Diana (bani = lei întregi, nu cenți).
+// Regula „banul impar”: share-ul lui floor(total/2) e al lui John, restul (imparul) la Cristina.
+function calcFinal(d, plannedMode) {
+  const inc = { John: 0, Cristina: 0 }, exp = { John: 0, Cristina: 0 }, cash = { John: 0, Cristina: 0 };
   for (const r of d.rows) {
-    if (r.kind === 'income') {
-      income[r.owner] += rowValue(r);
-      planned[r.owner] += Number(r.planned || 0);
-      incomeTotal += rowValue(r);
-    } else {
-      expenseTotal += rowValue(r);
-      paid[r.owner] += rowValue(r);
-    }
+    const v = plannedMode ? (r.actual ?? r.planned) : (r.actual ?? 0);
+    (r.kind === 'income' ? inc : exp)[r.owner] += Number(v || 0);
   }
-  const contrib = { John: paid.John, Cristina: paid.Cristina };
+  for (const o of OWNERS) cash[o] = inc[o] - exp[o];
   for (const t of d.transfers) {
-    if (OWNERS.includes(t.from)) contrib[t.from] += Number(t.amount || 0);
+    cash[t.from] -= Number(t.amount || 0);
+    cash[OWNERS.find((o) => o !== t.from)] += Number(t.amount || 0);
   }
-  const diff = contrib.John - contrib.Cristina; // >0 => John a plătit mai mult pentru comun
-  const split = expenseTotal > 0 || d.transfers.length > 0
-    ? { from: diff < 0 ? 'John' : 'Cristina', to: diff < 0 ? 'Cristina' : 'John', amount: Math.round(Math.abs(diff) / 2) }
-    : null;
-  return { income, planned, paid, expenseTotal, incomeTotal, split, hasContent: d.rows.length + d.transfers.length > 0 };
+  const total = inc.John + inc.Cristina - exp.John - exp.Cristina;
+  const shares = { John: Math.floor(total / 2), Cristina: total - Math.floor(total / 2) };
+  const s = cash.John - shares.John;
+  const ready =
+    d.rows.every((r) => !(r.kind === 'expense' && Number(r.planned) > 0 && r.actual === null)) &&
+    d.rows.every((r) => !(String(r.id).startsWith('salary-') && r.actual === null));
+  return {
+    inc, exp, cash, total, shares,
+    amount: Math.abs(s),
+    from: s > 0 ? 'John' : 'Cristina',
+    to: s > 0 ? 'Cristina' : 'John',
+    ready,
+  };
+}
+
+// Transferul temporar de până la salariul Cristinei (port al nG()).
+function calcInterim(d) {
+  const t = calcFinal(d, false);
+  const salC = d.rows.find((r) => r.id === 'salary-cristina');
+  const active = (salC ? salC.actual === null : t.inc.Cristina === 0) && t.inc.John > 0;
+  const reserve = d.rows
+    .filter((r) => r.owner === 'John' && r.kind === 'expense' && r.actual === null)
+    .reduce((a, r) => a + Number(r.planned || 0), 0);
+  const availJ = Math.max(0, t.cash.John - reserve);
+  const availC = Math.max(0, t.cash.Cristina);
+  const pool = availJ + availC;
+  return {
+    active, reserve, availJ, availC, pool,
+    amount: active ? Math.max(0, availJ - Math.floor(pool / 2)) : 0,
+    from: 'John', to: 'Cristina',
+  };
+}
+
+// Toate cifrele afișate, exact ca în aplicația originală:
+// est = previzionat (Estimare), fin = confirmat, interim = temporar, rec = recomandarea afișată,
+// after = compensarea estimată după transferul temporar.
+function figures() {
+  const d = S.state.data;
+  const est = calcFinal(d, true);
+  const fin = calcFinal(d, false);
+  const interim = calcInterim(d);
+  const rec = fin.ready ? fin : est;
+  const after = fin.ready ? fin : (interim.amount
+    ? calcFinal({ ...d, transfers: [...d.transfers, { id: 'preview-interim', from: 'John', amount: interim.amount, date: '' }] }, true)
+    : est);
+  return { est, fin, interim, rec, after, hasContent: d.rows.length + d.transfers.length > 0 };
 }
 
 /* ============================== randare ============================== */
@@ -154,24 +189,70 @@ function renderAll() {
 }
 
 function renderSummary() {
-  const c = calc();
-  const main = $('#splitMain'), note = $('#splitNote');
-  if (!c.hasContent) {
-    main.innerHTML = '—';
-    note.textContent = `${monthName(S.state.month)} e goală — apasă „+” ca să adaugi venituri și cheltuieli.`;
-  } else if (!c.split || c.split.amount === 0) {
-    main.innerHTML = 'Cheltuieli la echilibru';
-    note.textContent = c.expenseTotal > 0 ? `Fiecare acoperă jumătate din ${lei(c.expenseTotal)}.` : 'Nicio cheltuială comună în luna aceasta.';
+  const { est, fin, interim, rec, after } = figures();
+  const nameSpan = (o) => `<span class="${o === 'John' ? 'to-j' : 'to-c'}">${o}</span>`;
+  const arrow = (x) => `${nameSpan(x.from)} → ${nameSpan(x.to)} ${lei(x.amount)}`;
+
+  // Card 1 — „De împărțit luna aceasta” (baza: previzionat, ca în original)
+  $('#splitMain').textContent = lei(est.total);
+  const tag = $('#forecastTag');
+  tag.textContent = fin.ready ? 'Bani confirmați' : 'Estimare';
+  tag.classList.toggle('confirmed', fin.ready);
+  $('#shareJohn').textContent = lei(est.shares.John);
+  $('#shareCristina').textContent = lei(est.shares.Cristina);
+
+  // Card 2 — recomandarea de egalizare (Ce din original: fin confirmat dacă e gata, altfel estimare)
+  const recMain = $('#recMain');
+  if (rec.amount === 0) {
+    recMain.textContent = 'Sunteți la egalitate';
   } else {
-    const toCls = c.split.to === 'John' ? 'to-j' : 'to-c';
-    main.innerHTML = `<span class="from">${c.split.from}</span> → <span class="${toCls}">${c.split.to}</span> ${lei(c.split.amount)}`;
-    note.textContent = `Așa ajunge fiecare la jumătate din cheltuielile comune de ${lei(c.expenseTotal)}.`;
+    recMain.innerHTML = arrow(rec);
   }
-  $('#planJohn').textContent = lei(c.planned.John);
-  $('#planCristina').textContent = lei(c.planned.Cristina);
-  $('#incomeTotal').textContent = lei(c.incomeTotal);
-  $('#incomeTotal').classList.toggle('pos', c.incomeTotal > 0);
-  $('#expenseTotal').textContent = lei(c.expenseTotal);
+  $('#recNote').textContent = fin.ready
+    ? 'Salariile și cheltuielile sunt confirmate. Dacă un bonus încă nu a intrat, confirmă-l mai târziu: suma se va recalcula.'
+    : interim.amount
+      ? 'Aceasta este diferența netă pentru toată lună dacă nu se face transferul temporar de mai jos. Nu se adună peste suma de astăzi.'
+      : 'Estimarea include toate veniturile și cheltuielile planificate. Confirmă salariile și plățile înainte de a înregistra egalizarea.';
+  $('#deficitWarn').classList.toggle('hidden', est.total >= 0);
+  const eqBtn = $('#registerEqualBtn');
+  eqBtn.disabled = !(fin.ready && rec.amount > 0);
+  eqBtn.dataset.from = rec.from;
+  eqBtn.dataset.amount = rec.amount;
+
+  // Card 3 — transferul temporar de până la salariul Cristinei
+  const ic = $('#interimCard');
+  if (interim.active && interim.amount > 0) {
+    ic.classList.remove('hidden');
+    $('#interimMain').innerHTML = arrow(interim);
+    $('#interimNote').textContent =
+      `Acesta este un transfer temporar, ca Cristina să aibă bani până la salariu. Sunt rezervați ${lei(interim.reserve)} pentru cheltuielile neplătite din tab-ul lui John.`;
+    $('#availJ').textContent = lei(interim.availJ);
+    $('#availC').textContent = lei(interim.availC);
+    $('#afterNote').innerHTML =
+      `<strong>După transferul de azi:</strong> la final este estimată compensarea <strong>${
+        after.amount ? `${after.from} → ${after.to} ${lei(after.amount)}` : 'sunteți la egalitate'
+      }</strong>. Nu este o sumă suplimentară de trimis.`;
+    const iBtn = $('#registerInterimBtn');
+    iBtn.dataset.from = 'John';
+    iBtn.dataset.amount = interim.amount;
+  } else {
+    ic.classList.add('hidden');
+  }
+
+  // Statistici proprii (doar informativ)
+  const planned = { John: 0, Cristina: 0 };
+  let confirmedIncome = 0, expenseSum = 0;
+  for (const r of S.state.data.rows) {
+    if (r.kind === 'income') {
+      planned[r.owner] += Number(r.planned || 0);
+      confirmedIncome += rowValue(r);
+    } else expenseSum += rowValue(r);
+  }
+  $('#planJohn').textContent = lei(planned.John);
+  $('#planCristina').textContent = lei(planned.Cristina);
+  $('#incomeTotal').textContent = lei(confirmedIncome);
+  $('#incomeTotal').classList.toggle('pos', confirmedIncome > 0);
+  $('#expenseTotal').textContent = lei(expenseSum);
 }
 
 function dateChip(dateStr) {
@@ -385,11 +466,12 @@ $('#rowDelete').addEventListener('click', () => {
   closeOverlays(); markDirty(); renderSummary(); renderLists();
 });
 
-function openTrModal(tr) {
+function openTrModal(tr, prefill) {
   editingTrId = tr ? tr.id : null;
   $('#trTitle').textContent = tr ? 'Editează transferul' : 'Transfer între conturi';
-  document.querySelector(`input[name="trFrom"][value="${tr ? tr.from : 'John'}"]`).checked = true;
-  $('#trAmount').value = tr ? tr.amount : '';
+  const fromVal = tr ? tr.from : (prefill && prefill.from) || 'John';
+  document.querySelector(`input[name="trFrom"][value="${fromVal}"]`).checked = true;
+  $('#trAmount').value = tr ? tr.amount : (prefill && prefill.amount) || '';
   $('#trDate').value = tr && tr.date ? tr.date : todayISO();
   $('#trDelete').classList.toggle('hidden', !tr);
   openOverlay('#modalTransfer');
@@ -415,6 +497,15 @@ $('#trDelete').addEventListener('click', () => {
 $('#addRowBtn').addEventListener('click', () => openRowModal(null));
 $('#emptyAdd').addEventListener('click', () => openRowModal(null));
 $('#addTransferBtn').addEventListener('click', () => openTrModal(null));
+$('#registerEqualBtn').addEventListener('click', (e) => {
+  const b = e.currentTarget;
+  if (b.disabled) return;
+  openTrModal(null, { from: b.dataset.from, amount: b.dataset.amount });
+});
+$('#registerInterimBtn').addEventListener('click', (e) => {
+  const b = e.currentTarget;
+  openTrModal(null, { from: b.dataset.from || 'John', amount: b.dataset.amount });
+});
 
 /* ============================== toast ============================== */
 let toastTimer = null;

@@ -166,9 +166,17 @@ on conflict(id) do nothing;
 insert into public.jc_months(month, data, version)
 values ('2026-10', jsonb_build_object(
   'rows', jsonb_build_array(
-    jsonb_build_object('id','seed-income-john','owner','John','kind','income','label','Salariu','planned',5000,'actual',null,'date',''),
-    jsonb_build_object('id','seed-income-cristina','owner','Cristina','kind','income','label','Salariu','planned',5000,'actual',null,'date','')
+    jsonb_build_object('id','salary-john','owner','John','kind','income','label','Salariu','planned',5000,'actual',null,'date',''),
+    jsonb_build_object('id','salary-cristina','owner','Cristina','kind','income','label','Salariu','planned',5000,'actual',null,'date','')
   ),
   'transfers', '[]'::jsonb
 ), 1)
 on conflict(month) do nothing;
+
+-- (Dacă baza deja exista cu ids vechi „seed-income-*”, redenumiți-le:)
+-- update public.jc_months set data = jsonb_set(data, '{rows}',
+--   (select jsonb_agg(case when r->>'id' = 'seed-income-john' then jsonb_set(r, '{id}', '"salary-john"'::jsonb)
+--                         when r->>'id' = 'seed-income-cristina' then jsonb_set(r, '{id}', '"salary-cristina"'::jsonb)
+--                         else r end)
+--    from jsonb_array_elements(data->'rows') r))
+-- where month = '2026-10' and jsonb_path_exists(data->'rows', '$[?(@.id == "seed-income-john")]');
