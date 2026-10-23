@@ -1,0 +1,14 @@
+{
+  "name": "Banii Noștri · John & Cristina",
+  "short_name": "Banii Noștri",
+  "description": "Bugetul comun al lui John și Cristina. Venituri, cheltuieli și împărțire egală, cu plan care se propagă în lunile următoare.",
+  "id": "/Calculator_Venituri_John_Cristina/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0e1524",
+  "theme_color": "#0e1524",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

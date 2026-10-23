@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0e1524">
+  <meta name="description" content="Bugetul comun al lui John și Cristina. Venituri, cheltuieli și împărțire egală, cu plan care se propagă în lunile următoare.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Banii Noștri · John & Cristina</title>
+</head>
+<body>
+  <!-- ===== Ecran de deblocare ===== -->
+  <section id="login" class="screen center">
+    <div class="login-card">
+      <div class="brand-mark big" aria-hidden="true"></div>
+      <h1>Banii Noștri</h1>
+      <p class="sub">Bugetul comun al lui <strong>John</strong> și <strong>Cristina</strong></p>
+      <label class="field">
+        <span>Codul de acces</span>
+        <input id="codeInput" type="password" inputmode="text" autocomplete="off" spellcheck="false" placeholder="••••••••••••••••">
+      </label>
+      <button id="loginBtn" class="btn primary block">Deschide bugetul</button>
+      <p id="loginError" class="error hidden"></p>
+      <p class="hint">Codul de 64 de caractere primit la configurare. Se ține pe telefon, nu în GitHub.</p>
+    </div>
+  </section>
+
+  <!-- ===== Aplicația ===== -->
+  <section id="app" class="screen hidden">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <strong>Banii Noștri</strong>
+          <small>John &amp; Cristina</small>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span id="statusChip" class="chip">…</span>
+        <button id="lockBtn" class="icon-btn" title="Ieșire / blochează" aria-label="Blochează">⏻</button>
+      </div>
+    </header>
+
+    <nav class="monthnav">
+      <button id="prevMonth" class="icon-btn" aria-label="Luna anterioară">‹</button>
+      <div class="month-title">
+        <select id="monthSelect" aria-label="Alege luna"></select>
+        <button id="todayBtn" class="mini-btn hidden">azi</button>
+      </div>
+      <button id="nextMonth" class="icon-btn" aria-label="Luna următoare">›</button>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-card">
+        <span class="hero-label">Împărțirea lunii</span>
+        <strong id="splitMain" class="hero-value">—</strong>
+        <span id="splitNote" class="hero-note">Nicio cheltuială înregistrată</span>
+      </div>
+      <div class="stat-grid">
+        <div class="stat">
+          <span class="stat-label">Planificat · John</span>
+          <strong id="planJohn">0 lei</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Planificat · Cristina</span>
+          <strong id="planCristina">0 lei</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Încasat efectiv</span>
+          <strong id="incomeTotal">0 lei</strong>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Cheltuieli</span>
+          <strong id="expenseTotal">0 lei</strong>
+        </div>
+      </div>
+    </section>
+
+    <nav class="filters" id="filters">
+      <button class="fbtn active" data-filter="all">Toate</button>
+      <button class="fbtn j" data-filter="John">John</button>
+      <button class="fbtn c" data-filter="Cristina">Cristina</button>
+      <button class="fbtn" data-filter="income">Venituri</button>
+      <button class="fbtn" data-filter="expense">Cheltuieli</button>
+    </nav>
+
+    <main id="lists">
+      <div id="emptyState" class="empty hidden">
+        <p>Luna aceasta e goală.</p>
+        <button id="emptyAdd" class="btn primary">Adaugă prima poziție</button>
+      </div>
+      <section id="secIncome" class="listsec">
+        <h2>Venituri <small id="sumIncome"></small></h2>
+        <ul id="listIncome" class="items"></ul>
+      </section>
+      <section id="secExpense" class="listsec">
+        <h2>Cheltuieli comune <small id="sumExpense"></small></h2>
+        <ul id="listExpense" class="items"></ul>
+      </section>
+      <section id="secTransfer" class="listsec">
+        <h2>Transferuri <small id="sumTransfer"></small></h2>
+        <ul id="listTransfer" class="items"></ul>
+      </section>
+    </main>
+
+    <div class="bottombar">
+      <button id="addTransferBtn" class="btn ghost">⇄ Transfer</button>
+      <button id="saveBtn" class="btn primary">Salvează</button>
+    </div>
+
+    <button id="addRowBtn" class="fab" title="Adaugă poziție" aria-label="Adaugă poziție">+</button>
+  </section>
+
+  <!-- ===== Modal poziție (adaugă / editează) ===== -->
+  <div id="modalRow" class="overlay hidden">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="rowTitle">
+      <div class="sheet-head">
+        <h3 id="rowTitle">Adaugă poziție</h3>
+        <button class="icon-btn closeRow" aria-label="Închide">✕</button>
+      </div>
+      <label class="field">
+        <span>Denumire</span>
+        <input id="rowLabel" type="text" maxlength="100" placeholder="Salariu, Chirie, Rakoy…">
+      </label>
+      <div class="field">
+        <span id="ownerCaption">Din contul cui?</span>
+        <div class="radio-row">
+          <label class="radio j"><input type="radio" name="rowOwner" value="John" checked><span>John</span></label>
+          <label class="radio c"><input type="radio" name="rowOwner" value="Cristina"><span>Cristina</span></label>
+        </div>
+      </div>
+      <div class="two-col">
+        <label class="field">
+          <span id="plannedCaption">Planificat (lei)</span>
+          <input id="rowPlanned" type="number" inputmode="numeric" min="0" step="1" value="5000">
+        </label>
+        <label class="field">
+          <span id="actualCaption">Încasat efectiv (lei)</span>
+          <input id="rowActual" type="number" inputmode="numeric" min="0" step="1" placeholder="Neconfirmat">
+        </label>
+      </div>
+      <p class="field-note" id="carryNote">Valoarea „Planificat” se copiază automat și în lunile următoare.</p>
+      <div class="two-col">
+        <div class="field">
+          <span>Tip</span>
+          <div class="radio-row">
+            <label class="radio"><input type="radio" name="rowKind" value="income" checked><span>Venit</span></label>
+            <label class="radio"><input type="radio" name="rowKind" value="expense"><span>Cheltuială</span></label>
+          </div>
+        </div>
+        <label class="field">
+          <span>Data (opțional)</span>
+          <input id="rowDate" type="date">
+        </label>
+      </div>
+      <div class="sheet-foot">
+        <button id="rowDelete" class="btn danger hidden">Șterge poziția</button>
+        <button id="rowApply" class="btn primary">Aplică</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal transfer ===== -->
+  <div id="modalTransfer" class="overlay hidden">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="trTitle">
+      <div class="sheet-head">
+        <h3 id="trTitle">Transfer între conturi</h3>
+        <button class="icon-btn closeTr" aria-label="Închide">✕</button>
+      </div>
+      <div class="field">
+        <span>Cine dă banii?</span>
+        <div class="radio-row">
+          <label class="radio j"><input type="radio" name="trFrom" value="John" checked><span>John</span></label>
+          <label class="radio c"><input type="radio" name="trFrom" value="Cristina"><span>Cristina</span></label>
+        </div>
+      </div>
+      <div class="two-col">
+        <label class="field">
+          <span>Suma (lei)</span>
+          <input id="trAmount" type="number" inputmode="numeric" min="1" step="1" placeholder="ex: 1200">
+        </label>
+        <label class="field">
+          <span>Data</span>
+          <input id="trDate" type="date">
+        </label>
+      </div>
+      <div class="sheet-foot">
+        <button id="trDelete" class="btn danger hidden">Șterge transferul</button>
+        <button id="trApply" class="btn primary">Aplică</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="./config.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
